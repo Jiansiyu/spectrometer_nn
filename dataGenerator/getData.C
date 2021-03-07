@@ -5,13 +5,88 @@
 #include <TString.h>
 #include <TChain.h>
 #include <iostream>
-#include <TRandom.h>
-#include <TRandom3.h>
-
+#include <fstream>
+#include <stack>
+#include <queue>
 
 Bool_t SieveHoleCut(Int_t colID, Int_t rowID){
 //    std::cout<<"Col:"<<colID <<"  rowID:"<<rowID<<std::endl;
     return true;
+}
+
+std::map<TString,double> getCombination(double  x, double theta,double y, double phi){
+    // name pattern x0th0y0ph0
+    Int_t maxExpoIndex = 5;
+    std::queue<TString> combinations;
+
+    for (Int_t index = 0 ; index<= maxExpoIndex; index ++){
+        combinations.push(Form("x%dth%dy%dph%d",index,0,0,0));
+    }
+
+    Int_t queueSize = combinations.size();
+
+    // index the theta
+    for (auto i = 0; i< queueSize; i++){
+        auto title = combinations.front().Data();
+        combinations.pop();
+
+        Int_t xIndex  =  title[1]-'0';
+        Int_t thIndex =  title[4]-'0';
+        Int_t yIndex  =  title[6]-'0';
+        Int_t phIndex =  title[9]-'0';
+
+        for (auto index = 0; index<=maxExpoIndex;index++){
+            combinations.push(Form("x%dth%dy%dph%d",xIndex,index,0,0));
+        }
+    }
+
+    queueSize = combinations.size();
+    // index the y
+    for (auto i = 0; i< queueSize; i++){
+        auto title = combinations.front().Data();
+        combinations.pop();
+
+        Int_t xIndex  =  title[1]-'0';
+        Int_t thIndex =  title[4]-'0';
+        Int_t yIndex  =  title[6]-'0';
+        Int_t phIndex =  title[9]-'0';
+
+        for (auto index = 0; index<=maxExpoIndex;index++){
+            combinations.push(Form("x%dth%dy%dph%d",xIndex,thIndex,index,0));
+        }
+    }
+    queueSize = combinations.size();
+    // index the ph
+    for (auto i = 0; i< queueSize; i++){
+        auto title = combinations.front().Data();
+        combinations.pop();
+
+        Int_t xIndex  =  title[1]-'0';
+        Int_t thIndex =  title[4]-'0';
+        Int_t yIndex  =  title[6]-'0';
+        Int_t phIndex =  title[9]-'0';
+
+        for (auto index = 0; index<=maxExpoIndex;index++){
+            combinations.push(Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,index));
+        }
+    }
+
+    std::map<TString,double> res;
+    //pop the data and calculate the combinations
+//    std::cout<<"Total Size::"<<combinations.size()<<std::endl;
+    queueSize = combinations.size();
+    for (auto i = 0; i< queueSize; i++){
+        auto title = combinations.front().Data();
+        combinations.pop();
+
+        Int_t xIndex  =  title[1]-'0';
+        Int_t thIndex =  title[4]-'0';
+        Int_t yIndex  =  title[6]-'0';
+        Int_t phIndex =  title[9]-'0';
+
+        res[title] = pow(x,xIndex)*pow(theta,thIndex)*pow(y,yIndex)*pow(phi,phIndex);
+    }
+    return  res;
 }
 
 void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t sieveMinCT = 0){
@@ -141,25 +216,75 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
         chain->SetBranchAddress("targCalcPh", &TargCalPh);
 
 
-        //loop on the event and write the data to csv file
-        std::map<Int_t,Int_t> SieveEvtTracker;   //# sieve event tracker
-        for (std::set<Int_t>::iterator iter = cutIDBuff[runID].begin(); iter != cutIDBuff[runID].end(); iter++){
-            auto cutid = *iter;
-            SieveEvtTracker[cutid] = 0;
+        {
+
+            //loop on the event and write the data to csv file
+            std::map<Int_t, Int_t> SieveEvtTracker;   //# sieve event tracker
+            Int_t SieveTotalConter = 0;
+            for (std::set<Int_t>::iterator iter = cutIDBuff[runID].begin(); iter != cutIDBuff[runID].end(); iter++) {
+                auto cutid = *iter;
+                SieveEvtTracker[cutid] = 0;
+            }
+
+            std::ofstream csvfileIO;
+            csvfileIO.open(Form("./result/PRex_DataSet_%d.csv", runID));
+            csvfileIO << "evtID,CutID,bpmX,bpmY,focal_x,focal_y,focal_th,focal_ph,targCalTh,targCalPh \n";
+            Long64_t entries = chain->GetEntries();
+            for (Long64_t entry = 0; entry < entries; entry++) {
+                // TODO need to change to random access the entry
+                chain->GetEntry(entry);
+                if (SieveEvtTracker[CutID] < sieveMinCT) {
+                    SieveEvtTracker[CutID] += 1;
+                    SieveTotalConter += 1;
+                    // write the data to the csv files
+                    csvfileIO << Form("%d,%d,%f,%f,%f,%f,%f,%f,%f,%f \n", evtID, CutID, bpmX, bpmY, focalX, focalY,
+                                      focalTh, focalPh, TargCalTh, TargCalPh);
+
+                }
+
+                if (SieveTotalConter >= SieveEvtTracker.size() * sieveMinCT) break;
+            }
+            csvfileIO.close();
         }
 
-        Long64_t entries = chain->GetEntries();
-        for (Long64_t entry = 0 ; entry  < entries; entry ++ ){
-            // TODO need to change to random access the entry
+        {
+            //loop on the event and write the data to csv file
+            std::map<Int_t,Int_t> SieveEvtTracker;   //# sieve event tracker
+            Int_t SieveTotalConter=0;
+            for (std::set<Int_t>::iterator iter = cutIDBuff[runID].begin(); iter != cutIDBuff[runID].end(); iter++){
+                auto cutid = *iter;
+                SieveEvtTracker[cutid] = 0;
+            }
+            std::ofstream csvFullfileIO; // include all the combinations
+            csvFullfileIO.open(Form("./result/PRex_DataSet_Full_%d.csv",runID));
+            csvFullfileIO<<"evtID,CutID,bpmX,bpmY";
+            auto titleComb = getCombination(0,0,0,0);
+            for (auto iter = titleComb.begin(); iter!=titleComb.end();iter++){
+                csvFullfileIO<<","<<iter->first.Data();
+            }
+            csvFullfileIO<<",targCalTh,targCalPh \n";
+            Long64_t entries = chain->GetEntries();
+            for (Long64_t entry = 0; entry < entries; entry++) {
+                // TODO need to change to random access the entry
+                chain->GetEntry(entry);
+                if (SieveEvtTracker[CutID] < sieveMinCT) {
+                    SieveEvtTracker[CutID] += 1;
+                    SieveTotalConter += 1;
+                    csvFullfileIO << Form("%d,%d,%f,%f", evtID, CutID, bpmX, bpmY);
 
+                    auto newComb = getCombination(focalX,focalTh,focalY,focalPh);
+                    for (auto iter = newComb.begin();iter!=newComb.end();iter ++){
+                        csvFullfileIO <<","<<iter->second;
+                    }
+                    csvFullfileIO<<Form(",%f,%f\n",TargCalTh,TargCalPh);
+                }
 
-
+                if (SieveTotalConter >= SieveEvtTracker.size() * sieveMinCT) break;
+            }
+            csvFullfileIO.close();
         }
-
         chain->Delete();
     }
-
-
 
 }
 
