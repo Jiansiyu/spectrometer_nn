@@ -35,15 +35,15 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <p align="left">
 
 <a href="https://github.com/Jiansiyu">
-<img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="60" height="60">
+<img src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="40" height="40">
 </a>
 
 <a href="mailto:sj9va@virginia.edu">
-<img src="https://preview.redd.it/izqwm1g21b751.png?auto=webp&s=da8f46dec79e38870efeac10d5a829e50792686b" width="60" height="60">
+<img src="https://preview.redd.it/izqwm1g21b751.png?auto=webp&s=da8f46dec79e38870efeac10d5a829e50792686b" width="40" height="40">
 </a>
 
 <a href="https://www.linkedin.com/in/jiansiyu/">
-<img src="https://upload.wikimedia.org/wikipedia/commons/e/e9/Linkedin_icon.svg" width="60" height="60">
+<img src="https://upload.wikimedia.org/wikipedia/commons/e/e9/Linkedin_icon.svg" width="40" height="40">
 </a>
 
 [comment]: <> (<a href="https://github.com/markdown-templates/markdown-snippets/stargazers">)
