@@ -16,7 +16,7 @@ Bool_t SieveHoleCut(Int_t colID, Int_t rowID){
 
 std::map<TString,double> getCombination(double  x, double theta,double y, double phi){
     // name pattern x0th0y0ph0
-    Int_t maxExpoIndex = 5;
+    Int_t maxExpoIndex = 4;
     std::queue<TString> combinations;
 
     for (Int_t index = 0 ; index<= maxExpoIndex; index ++){
@@ -24,67 +24,73 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
     }
 
     Int_t queueSize = combinations.size();
-
     // index the theta
     for (auto i = 0; i< queueSize; i++){
-        auto title = combinations.front().Data();
+        TString str = combinations.front();
+        const char* title = str.Data();
         combinations.pop();
 
         Int_t xIndex  =  title[1]-'0';
-        Int_t thIndex =  title[4]-'0';
-        Int_t yIndex  =  title[6]-'0';
-        Int_t phIndex =  title[9]-'0';
 
         for (auto index = 0; index<=maxExpoIndex;index++){
-            combinations.push(Form("x%dth%dy%dph%d",xIndex,index,0,0));
+            TString str = Form("x%dth%dy%dph%d",xIndex,index,0,0);
+            combinations.push(str);
         }
     }
 
     queueSize = combinations.size();
     // index the y
     for (auto i = 0; i< queueSize; i++){
-        auto title = combinations.front().Data();
+        TString str = combinations.front();
+        const char* title = str.Data();
         combinations.pop();
 
         Int_t xIndex  =  title[1]-'0';
         Int_t thIndex =  title[4]-'0';
-        Int_t yIndex  =  title[6]-'0';
-        Int_t phIndex =  title[9]-'0';
 
         for (auto index = 0; index<=maxExpoIndex;index++){
-            combinations.push(Form("x%dth%dy%dph%d",xIndex,thIndex,index,0));
+            TString str =Form("x%dth%dy%dph%d",xIndex,thIndex,index,0);
+            combinations.push(str);
         }
     }
+
     queueSize = combinations.size();
-    // index the ph
     for (auto i = 0; i< queueSize; i++){
-        auto title = combinations.front().Data();
+        TString str = combinations.front();
+        const char* title = str.Data();
         combinations.pop();
 
         Int_t xIndex  =  title[1]-'0';
         Int_t thIndex =  title[4]-'0';
         Int_t yIndex  =  title[6]-'0';
-        Int_t phIndex =  title[9]-'0';
 
         for (auto index = 0; index<=maxExpoIndex;index++){
-            combinations.push(Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,index));
+            TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,index);
+            combinations.push(str);
         }
     }
+
+//    queueSize = combinations.size();
+//    for (auto i = 0; i< queueSize; i++){
+//        auto title = combinations.front();
+//        combinations.pop();
+//        std::cout<<title.Data()<<std::endl;
+//    }
 
     std::map<TString,double> res;
-    //pop the data and calculate the combinations
-//    std::cout<<"Total Size::"<<combinations.size()<<std::endl;
+//pop the data and calculate the combinations
     queueSize = combinations.size();
     for (auto i = 0; i< queueSize; i++){
-        auto title = combinations.front().Data();
+        TString str = combinations.front();
+        const char* title = str.Data();
         combinations.pop();
-
         Int_t xIndex  =  title[1]-'0';
         Int_t thIndex =  title[4]-'0';
         Int_t yIndex  =  title[6]-'0';
         Int_t phIndex =  title[9]-'0';
+        res[str] = pow(x,xIndex)*pow(theta,thIndex)*pow(y,yIndex)*pow(phi,phIndex);
 
-        res[title] = pow(x,xIndex)*pow(theta,thIndex)*pow(y,yIndex)*pow(phi,phIndex);
+//        std::cout<<str.Data()<<" :: "<<res[str] <<"  "<<xIndex<<","<<thIndex<<","<<yIndex<<","<<phIndex<<std::endl;
     }
     return  res;
 }
@@ -215,9 +221,8 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
         chain->SetBranchAddress("targCalcTh", &TargCalTh);
         chain->SetBranchAddress("targCalcPh", &TargCalPh);
 
-
+        std::cout <<"Working on "<<runID<<std::endl;
         {
-
             //loop on the event and write the data to csv file
             std::map<Int_t, Int_t> SieveEvtTracker;   //# sieve event tracker
             Int_t SieveTotalConter = 0;
@@ -258,9 +263,11 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
             std::ofstream csvFullfileIO; // include all the combinations
             csvFullfileIO.open(Form("./result/PRex_DataSet_Full_%d.csv",runID));
             csvFullfileIO<<"evtID,CutID,bpmX,bpmY";
-            auto titleComb = getCombination(0,0,0,0);
+            std::map<TString,double> titleComb = getCombination(0,0,0,0);
             for (auto iter = titleComb.begin(); iter!=titleComb.end();iter++){
-                csvFullfileIO<<","<<iter->first.Data();
+                TString str = iter->first;
+//                std::cout<<str.Data()<<std::endl;
+                csvFullfileIO<<","<<str.Data();
             }
             csvFullfileIO<<",targCalTh,targCalPh \n";
             Long64_t entries = chain->GetEntries();
@@ -275,6 +282,8 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
                     auto newComb = getCombination(focalX,focalTh,focalY,focalPh);
                     for (auto iter = newComb.begin();iter!=newComb.end();iter ++){
                         csvFullfileIO <<","<<iter->second;
+//                        std::cout<<(iter->first).Data()<<"  : "<<iter->second <<"      (x,th,y,ph):: "<<focalX<<", "<<focalTh<<", "<<focalY<<", "<<focalPh
+//                        <<std::endl;
                     }
                     csvFullfileIO<<Form(",%f,%f\n",TargCalTh,TargCalPh);
                 }
