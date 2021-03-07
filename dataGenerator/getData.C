@@ -269,7 +269,7 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
 //                std::cout<<str.Data()<<std::endl;
                 csvFullfileIO<<","<<str.Data();
             }
-            csvFullfileIO<<",targCalTh,targCalPh \n";
+            csvFullfileIO<<",targCalTh,targCalPh\n";
             Long64_t entries = chain->GetEntries();
             for (Long64_t entry = 0; entry < entries; entry++) {
                 // TODO need to change to random access the entry
