@@ -16,7 +16,7 @@ Bool_t SieveHoleCut(Int_t colID, Int_t rowID){
 
 std::map<TString,double> getCombination(double  x, double theta,double y, double phi){
     // name pattern x0th0y0ph0
-    Int_t maxExpoIndex = 4;
+    Int_t maxExpoIndex = 2;
     std::queue<TString> combinations;
 
     for (Int_t index = 0 ; index<= maxExpoIndex; index ++){
@@ -69,6 +69,26 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
             combinations.push(str);
         }
     }
+
+
+    // apply cut on the total order 
+    queueSize = combinations.size();
+    for (auto i = 0; i< queueSize; i++){
+        TString str = combinations.front();
+        const char* title = str.Data();
+        combinations.pop();
+
+        Int_t xIndex  =  title[1]-'0';
+        Int_t thIndex =  title[4]-'0';
+        Int_t yIndex  =  title[6]-'0';
+        Int_t phIndex =  title[9]-'0';
+        if ((xIndex + thIndex + yIndex + phIndex <= 2)){
+            TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,phIndex);
+            combinations.push(str);
+        }
+    }
+
+
 
 //    queueSize = combinations.size();
 //    for (auto i = 0; i< queueSize; i++){
@@ -233,7 +253,7 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
 
             std::ofstream csvfileIO;
             csvfileIO.open(Form("./result/PRex_DataSet_%d.csv", runID));
-            csvfileIO << "evtID,CutID,bpmX,bpmY,focal_x,focal_y,focal_th,focal_ph,targCalTh,targCalPh \n";
+            csvfileIO << "evtID,runID,CutID,SieveRowID,SieveColID,bpmX,bpmY,focal_x,focal_y,focal_th,focal_ph,targCalTh,targCalPh\n";
             Long64_t entries = chain->GetEntries();
             for (Long64_t entry = 0; entry < entries; entry++) {
                 // TODO need to change to random access the entry
@@ -242,7 +262,7 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
                     SieveEvtTracker[CutID] += 1;
                     SieveTotalConter += 1;
                     // write the data to the csv files
-                    csvfileIO << Form("%d,%d,%f,%f,%f,%f,%f,%f,%f,%f \n", evtID, CutID, bpmX, bpmY, focalX, focalY,
+                    csvfileIO << Form("%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f \n", evtID,runID,CutID,SieveRowID,SieveColID,bpmX, bpmY, focalX, focalY,
                                       focalTh, focalPh, TargCalTh, TargCalPh);
 
                 }
@@ -262,7 +282,7 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
             }
             std::ofstream csvFullfileIO; // include all the combinations
             csvFullfileIO.open(Form("./result/PRex_DataSet_Full_%d.csv",runID));
-            csvFullfileIO<<"evtID,CutID,bpmX,bpmY";
+            csvFullfileIO<<"evtID,runID,CutID,SieveRowID,SieveColID,bpmX,bpmY";
             std::map<TString,double> titleComb = getCombination(0,0,0,0);
             for (auto iter = titleComb.begin(); iter!=titleComb.end();iter++){
                 TString str = iter->first;
@@ -277,7 +297,7 @@ void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t si
                 if (SieveEvtTracker[CutID] < sieveMinCT) {
                     SieveEvtTracker[CutID] += 1;
                     SieveTotalConter += 1;
-                    csvFullfileIO << Form("%d,%d,%f,%f", evtID, CutID, bpmX, bpmY);
+                    csvFullfileIO << Form("%d,%d,%d,%d,%d,%f,%f", evtID,runID, CutID,SieveRowID,SieveColID,bpmX, bpmY);
 
                     auto newComb = getCombination(focalX,focalTh,focalY,focalPh);
                     for (auto iter = newComb.begin();iter!=newComb.end();iter ++){
