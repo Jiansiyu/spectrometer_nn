@@ -16,7 +16,7 @@ Bool_t SieveHoleCut(Int_t colID, Int_t rowID){
 
 std::map<TString,double> getCombination(double  x, double theta,double y, double phi){
     // name pattern x0th0y0ph0
-    Int_t maxExpoIndex = 2;
+    Int_t maxExpoIndex = 4;
     std::queue<TString> combinations;
 
     for (Int_t index = 0 ; index<= maxExpoIndex; index ++){
@@ -71,7 +71,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
     }
 
 
-    // apply cut on the total order 
+    // apply cut on the total order
     queueSize = combinations.size();
     for (auto i = 0; i< queueSize; i++){
         TString str = combinations.front();
@@ -82,7 +82,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         Int_t thIndex =  title[4]-'0';
         Int_t yIndex  =  title[6]-'0';
         Int_t phIndex =  title[9]-'0';
-        if ((xIndex + thIndex + yIndex + phIndex <= 2)){
+        if ((xIndex + thIndex + yIndex + phIndex <= 3)){
             TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,phIndex);
             combinations.push(str);
         }
