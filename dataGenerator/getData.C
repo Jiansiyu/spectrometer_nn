@@ -16,7 +16,7 @@ Bool_t SieveHoleCut(Int_t colID, Int_t rowID){
 
 std::map<TString,double> getCombination(double  x, double theta,double y, double phi){
     // name pattern x0th0y0ph0
-    Int_t maxExpoIndex = 4;
+    Int_t maxExpoIndex = 5;
     std::queue<TString> combinations;
 
     for (Int_t index = 0 ; index<= maxExpoIndex; index ++){
@@ -82,7 +82,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         Int_t thIndex =  title[4]-'0';
         Int_t yIndex  =  title[6]-'0';
         Int_t phIndex =  title[9]-'0';
-        if ((xIndex + thIndex + yIndex + phIndex <= 3)){
+        if ((xIndex + thIndex + yIndex + phIndex <= 7)){
             TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,phIndex);
             combinations.push(str);
         }
@@ -115,7 +115,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
     return  res;
 }
 
-void GetMinSieveEvent(TString fnameTemplate="./data/checkSieve_%d.root",Int_t sieveMinCT = 0){
+void GetMinSieveEvent(TString fnameTemplate="./data/data_focal/checkSieve_%d.root",Int_t sieveMinCT = 0){
 
     Int_t runList[]={2239,2240,2241,2244,2245,2256,2257};
 
