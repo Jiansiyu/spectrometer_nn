@@ -41,7 +41,7 @@ are the root files contains the detector plane variables.
 
 ## TODO
  - [ ] Change unequal dataset ? The number of the dataset in each sieve hole will reflect the importance of the sieve hole
-
+ - [ ] Try Detector Coordination System different order optimize
 <!-- LICENSE -->
 ## License
 
