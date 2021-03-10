@@ -13,7 +13,7 @@
 #+++++++++++++++++++++++++++++++++++++++++++
 # general make file configuration
 
-CC       = g++ -std=c++11 -pthread -lpthread -Ofast -g3 #-Wall
+CC       = g++ -std=c++0x -pthread -lpthread -Ofast -g3 #-Wall
 CFLAGS= ${CFLAG}
 THIS_DIR =`cd "\`dirname \"$0\"\`";pwd`
 

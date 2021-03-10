@@ -82,7 +82,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         Int_t thIndex =  title[4]-'0';
         Int_t yIndex  =  title[6]-'0';
         Int_t phIndex =  title[9]-'0';
-        if ((xIndex + thIndex + yIndex + phIndex <= 7)){
+        if ((xIndex + thIndex + yIndex + phIndex <= 5)){
             TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,phIndex);
             combinations.push(str);
         }
@@ -114,6 +114,8 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
     }
     return  res;
 }
+
+
 
 void GetMinSieveEvent(TString fnameTemplate="./data/data_detCoord/checkSieve_%d.root",Int_t sieveMinCT = 0){
 
@@ -252,7 +254,7 @@ void GetMinSieveEvent(TString fnameTemplate="./data/data_detCoord/checkSieve_%d.
             }
 
             std::ofstream csvfileIO;
-            csvfileIO.open(Form("./result/PRex_DataSet_%d.csv", runID));
+            csvfileIO.open(Form("./result/equal/PRex_DataSet_%d.csv", runID));
             csvfileIO << "evtID,runID,CutID,SieveRowID,SieveColID,bpmX,bpmY,focal_x,focal_y,focal_th,focal_ph,targCalTh,targCalPh\n";
             Long64_t entries = chain->GetEntries();
             for (Long64_t entry = 0; entry < entries; entry++) {
@@ -281,12 +283,11 @@ void GetMinSieveEvent(TString fnameTemplate="./data/data_detCoord/checkSieve_%d.
                 SieveEvtTracker[cutid] = 0;
             }
             std::ofstream csvFullfileIO; // include all the combinations
-            csvFullfileIO.open(Form("./result/PRex_DataSet_Full_%d.csv",runID));
+            csvFullfileIO.open(Form("./result/equal/PRex_DataSet_Full_%d.csv",runID));
             csvFullfileIO<<"evtID,runID,CutID,SieveRowID,SieveColID,bpmX,bpmY";
             std::map<TString,double> titleComb = getCombination(0,0,0,0);
             for (auto iter = titleComb.begin(); iter!=titleComb.end();iter++){
                 TString str = iter->first;
-//                std::cout<<str.Data()<<std::endl;
                 csvFullfileIO<<","<<str.Data();
             }
             csvFullfileIO<<",targCalTh,targCalPh\n";
@@ -312,6 +313,83 @@ void GetMinSieveEvent(TString fnameTemplate="./data/data_detCoord/checkSieve_%d.
             }
             csvFullfileIO.close();
         }
+
+        // get the unequal event number for each sieve hole
+        // unequal event: require all the sieve hole event number larger than the cerntain number
+        // and keep all the event before the event
+
+        {
+            //loop on the event and write the data to csv file
+            std::map<Int_t, Int_t> SieveEvtTracker;   //# sieve event tracker
+            Int_t SieveTotalConter = 0;
+            for (std::set<Int_t>::iterator iter = cutIDBuff[runID].begin(); iter != cutIDBuff[runID].end(); iter++) {
+                auto cutid = *iter;
+                SieveEvtTracker[cutid] = 0;
+            }
+
+            std::ofstream csvfileIO;
+            csvfileIO.open(Form("./result/unequal/PRex_DataSet_%d.csv", runID));
+            csvfileIO << "evtID,runID,CutID,SieveRowID,SieveColID,bpmX,bpmY,focal_x,focal_y,focal_th,focal_ph,targCalTh,targCalPh\n";
+            Long64_t entries = chain->GetEntries();
+            for (Long64_t entry = 0; entry < entries; entry++) {
+                // TODO need to change to random access the entry
+                chain->GetEntry(entry);
+                SieveEvtTracker[CutID] += 1;
+                // write the data to the csv files
+                csvfileIO << Form("%d,%d,%d,%d,%d,%f,%f,%f,%f,%f,%f,%f,%f \n", evtID,runID,CutID,SieveRowID,SieveColID,bpmX, bpmY, focalX, focalY,
+                                  focalTh, focalPh, TargCalTh, TargCalPh);
+
+                // check the minimum number of the sieve holes
+                auto it = min_element(SieveEvtTracker.begin(), SieveEvtTracker.end(),
+                                      [](decltype(SieveEvtTracker)::value_type& l, decltype(SieveEvtTracker)::value_type& r) -> bool { return l.second < r.second; });
+                if (it->second > sieveMinCT) break;
+
+            }
+            csvfileIO.close();
+        }
+
+
+        // write the high order data array
+        {
+            //loop on the event and write the data to csv file
+            std::map<Int_t,Int_t> SieveEvtTracker;   //# sieve event tracker
+            Int_t SieveTotalConter=0;
+            for (std::set<Int_t>::iterator iter = cutIDBuff[runID].begin(); iter != cutIDBuff[runID].end(); iter++){
+                auto cutid = *iter;
+                SieveEvtTracker[cutid] = 0;
+            }
+            std::ofstream csvFullfileIO; // include all the combinations
+            csvFullfileIO.open(Form("./result/unequal/PRex_DataSet_Full_%d.csv",runID));
+            csvFullfileIO<<"evtID,runID,CutID,SieveRowID,SieveColID,bpmX,bpmY";
+            std::map<TString,double> titleComb = getCombination(0,0,0,0);
+            for (auto iter = titleComb.begin(); iter!=titleComb.end();iter++){
+                TString str = iter->first;
+                csvFullfileIO<<","<<str.Data();
+            }
+            csvFullfileIO<<",targCalTh,targCalPh\n";
+            Long64_t entries = chain->GetEntries();
+            for (Long64_t entry = 0; entry < entries; entry++) {
+                // TODO need to change to random access the entry
+                chain->GetEntry(entry);
+
+                SieveEvtTracker[CutID] += 1;
+                csvFullfileIO << Form("%d,%d,%d,%d,%d,%f,%f", evtID,runID, CutID,SieveRowID,SieveColID,bpmX, bpmY);
+
+                auto newComb = getCombination(focalX,focalTh,focalY,focalPh);
+                for (auto iter = newComb.begin();iter!=newComb.end();iter ++){
+                    csvFullfileIO <<","<<iter->second;
+                }
+                csvFullfileIO<<Form(",%f,%f\n",TargCalTh,TargCalPh);
+
+                // check the minimum number of the sieve holes
+                auto it = min_element(SieveEvtTracker.begin(), SieveEvtTracker.end(),
+                                      [](decltype(SieveEvtTracker)::value_type& l, decltype(SieveEvtTracker)::value_type& r) -> bool { return l.second < r.second; });
+                if (it->second > sieveMinCT) break;
+            }
+            csvFullfileIO.close();
+        }
+
+
         chain->Delete();
     }
 
