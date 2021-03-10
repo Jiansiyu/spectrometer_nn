@@ -115,7 +115,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
     return  res;
 }
 
-void GetMinSieveEvent(TString fnameTemplate="./data/data_focal/checkSieve_%d.root",Int_t sieveMinCT = 0){
+void GetMinSieveEvent(TString fnameTemplate="./data/data_detCoord/checkSieve_%d.root",Int_t sieveMinCT = 0){
 
     Int_t runList[]={2239,2240,2241,2244,2245,2256,2257};
 

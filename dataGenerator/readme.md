@@ -3,7 +3,6 @@
 ## input data source 
 The script take the output of the Opt scripts output root file as input.
 
-
 - [x] loop all the sieve holes 
 - [x] get the event number for each sieve holes 
 - [x] find the minimum number of event in each sieve holes
