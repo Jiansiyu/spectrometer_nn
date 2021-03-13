@@ -40,8 +40,13 @@ are the root files contains the detector plane variables.
 
 
 ## TODO
- - [ ] Change unequal dataset ? The number of the dataset in each sieve hole will reflect the importance of the sieve hole
- - [ ] Try Detector Coordination System different order optimize
+ - [x] Change unequal dataset ? The number of the dataset in each sieve hole will reflect the importance of the sieve hole
+   - [x] tested bad
+ - [x] Try Detector Coordination System different order optimize
+   - [ ] 3 order
+   - [ ] 4 order
+   - [ ] 5 order
+ - [ ] add new tune function to the multi-order training
 <!-- LICENSE -->
 ## License
 
