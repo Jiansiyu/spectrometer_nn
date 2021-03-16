@@ -1,0 +1,358 @@
+---
+title: "Spectometer Regression" 
+author: "**Siyu Jian / sj9va**"
+date: " Wed Mar 10 | 10:55am"
+output: R6018::homework
+---
+
+*******************************************
+```{r config, echo=FALSE}
+source(system.file("config/hw_config.R", package="R6018")) # knitr settings
+# options(dplyr.summarise.inform = FALSE)  # ignore dplyr message about grouping
+```
+
+
+# Required R packages and Directories
+
+### {.solution}
+```{r packages, message=FALSE, warning=FALSE}
+data.dir = 'https://mdporter.github.io/SYS6018/data/' # data directory
+library(R6018)     # functions for SYS-6018
+library(tidyverse) # functions for data manipulation   
+library(mlbench)
+library(glmnet)
+library(glmnetUtils) 
+```
+
+# Load the focal plane training dataset 
+```{r warning=FALSE}
+# focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order7_ep5/combine.csv"
+focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order10_ep5/combine.csv"
+
+dataset_focal = readr::read_csv(focal_url)
+dataSet = dataset_focal %>% as.matrix()
+# dataSet
+```
+
+# Spectrometer Regression {.tabset} 
+## 20-fold lasso regression 
+### 1. training the model
+```{r }
+
+trainSize = round(0.7*nrow(dataSet)) 
+
+train  = sample(nrow(dataSet),size = trainSize)
+test   = - train
+
+trainSet = dataset_focal[train,]
+train_X = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh)
+train_y_theta = trainSet %>% select(targCalTh)
+train_y_phi = trainSet %>% select(targCalPh)
+
+
+n.fold = 20
+fold = sample(rep(1:n.fold, length=nrow(train_X)))
+fit.theta = cv.glmnet(as.matrix(train_X),as.matrix(train_y_theta),foldid=fold)
+fit.phi   = cv.glmnet(as.matrix(train_X),as.matrix(train_y_phi),foldid = fold)
+```
+
+```{r}
+
+plot(fit.phi,log='y')
+plot(fit.theta,log='y')
+```
+### 2. check how it behave on the training dataset 
+```{r}
+
+trainSetRes  = trainSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,targCalTh,targCalPh)
+
+train_ResX   = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh)
+train_ResX_theta = trainSet  %>% select(targCalTh)
+train_ResX_phi   = trainSet  %>% select(targCalPh)
+
+train.y.theta.pred = predict(fit.theta,newx = as.matrix(train_ResX),s="lambda.1se")
+colnames(train.y.theta.pred) = c("pred.theta")
+trainSetRes <- cbind(trainSetRes,pred.thet = train.y.theta.pred)
+
+train.y.phi.pred = predict(fit.phi,newx = as.matrix(train_ResX),s="lambda.1se")
+colnames(train.y.phi.pred) = c("pred.phi")
+trainSetRes <- cbind(trainSetRes,pred.phi = train.y.phi.pred)
+trainSetRes$resid.theta <- trainSetRes$targCalTh - trainSetRes$pred.theta 
+trainSetRes$resid.phi <- trainSetRes$targCalPh - trainSetRes$pred.phi 
+
+
+```
+
+```{r}
+val = trainSetRes %>%
+  filter(.$runID == 2239)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2239))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2240)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2240))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2241)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2241))
+
+val = trainSetRes %>%
+  filter(.$runID == 2244)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2244))
+
+val = trainSetRes %>%
+  filter(.$runID == 2245)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2245))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2256)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2256))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2257)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2257))
+```
+
+### 3.plot the validation plot 
+```{r}
+# make prediction on the theta and phi angles
+testSet = dataset_focal[test,]
+
+testSetRes = testSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,targCalTh,targCalPh)
+
+test_X = testSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh)
+test_y_theta = testSet %>% select(targCalTh)
+test_y_phi   = testSet %>% select(targCalPh)
+
+test.y.theta.pred = predict(fit.theta,newx = as.matrix(test_X),s="lambda.1se")
+colnames(test.y.theta.pred) = c("pred.theta")
+testSetRes <- cbind(testSetRes,pred.thet = test.y.theta.pred)
+
+test.y.phi.pred = predict(fit.phi,newx = as.matrix(test_X),s="lambda.1se")
+colnames(test.y.phi.pred) = c("pred.phi")
+testSetRes <- cbind(testSetRes,pred.phi = test.y.phi.pred)
+testSetRes$resid.theta <- testSetRes$targCalTh - testSetRes$pred.theta 
+testSetRes$resid.phi <- testSetRes$targCalPh - testSetRes$pred.phi 
+
+# testSetRes
+```
+
+
+
+
+```{r}
+unique(testSetRes$runID) %>% print()
+val = testSetRes %>% filter(.$runID == 2256)
+val 
+```
+
+```{r}
+unique(testSetRes$runID)
+
+val = testSetRes %>%
+  filter(.$runID == 2239)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2239))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2240)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2240))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2241)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2241))
+
+val = testSetRes %>%
+  filter(.$runID == 2244)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2244))
+
+val = testSetRes %>%
+  filter(.$runID == 2245)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2245))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2256)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2256))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2257)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2257))
+
+#ggplot(val,aes(x=pred.phi,y=pred.theta,color="red")) + geom_point()
+
+```
+
+```{r}
+residalRes = tibble(runID = numeric(), cutID = numeric(),mean.resid.theta = numeric(),stde.resid.theta = numeric(),mean.resid.phi = numeric(),stde.resid.phi= numeric())
+runID.list = unique(testSetRes$runID)
+
+for (id in runID.list) {
+    test.res = testSetRes %>%
+      filter(.$runID == id)
+    
+    cutid.list = unique(test.res$CutID)
+    for (cutid in cutid.list){
+      test.res.cutid = test.res %>%
+        filter(.$CutID == cutid)
+      mean.resid.theta = mean(test.res.cutid$resid.theta)
+      stde.resid.theta = sd(test.res.cutid$resid.theta)/sqrt(length(test.res.cutid$resid.theta))
+      
+      mean.resid.phi = mean(test.res.cutid$resid.phi)
+      stde.resid.phi = sd(test.res.cutid$resid.phi)/sqrt(length(test.res.cutid$resid.phi))
+      residalRes = add_row(residalRes,tibble(runID=id,cutID = cutid, mean.resid.theta = mean.resid.theta,
+                                             stde.resid.theta=stde.resid.theta,
+                                             mean.resid.phi = mean.resid.phi,
+                                             stde.resid.phi = stde.resid.phi))
+    }
+}
+
+
+
+residalRes %>%
+  filter(.$runID == 2239) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2239))
+
+
+residalRes %>%
+  filter(.$runID == 2240) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2240))
+
+residalRes %>%
+  filter(.$runID == 2241) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2241))
+
+residalRes %>%
+  filter(.$runID == 2244) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2244))
+
+
+residalRes %>%
+  filter(.$runID == 2245) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2245))
+
+residalRes %>%
+  filter(.$runID == 2256) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2256))
+
+residalRes %>%
+  filter(.$runID == 2257) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2257))
+
+res = testSetRes %>%
+  filter(.$runID == 2239)
+
+mid_phi_df <- res %>%
+  group_by(CutID) %>%
+  summarize(median=median(resid.phi))
+
+ggplot(res, aes(x=resid.phi,color = "CutID")) + geom_density() + 
+  geom_vline(data =mid_phi_df, aes(xintercept = median))+ 
+  xlim(-0.002,0.002)
+  
+```
+
+
+
+## n.fold cross validation regression
+
+### 1.prepare the ridge regression dataset
+```{r}
+n.folds = seq(10,100,by=10)
+fold.scan.res = tibble(fold = numeric(),type = str_c(),lambda.min = numeric(),lambda.1se = numeric(), mse.min = numeric(),mse.1se = numeric())
+
+ptm <- proc.time()
+
+for (n.fold in n.folds){
+  fold = sample(rep(1:n.fold,length = nrow(train_X)))
+  fit.theta.step = cv.glmnet(as.matrix(train_X),as.matrix(train_y_theta),foldid = fold)
+  fit.phi.step   = cv.glmnet(as.matrix(train_X),  as.matrix(train_y_phi),foldid = fold)
+
+  # get the min mse
+  mse.min.theta = fit.theta.step$cvm[fit.theta.step$lambda == fit.theta.step$lambda.min]
+  mse.1se.theta = fit.theta.step$cvm[fit.theta.step$lambda == fit.theta.step$lambda.1se]
+  lambda.min.theta = fit.theta.step$lambda.min
+  lambda.1se.theta = fit.theta.step$lambda.1se
+  
+  # res.theta = tibble(fold = n.fold, type = "theta",
+  #                     lambda.min = lambda.min.theta,
+  #                     lambda.1se = lambda.1se.theta,
+  #                     mse.min = mse.min.theta,
+  #                     mse.1se = mse.1se.theta )
+  fold.scan.res = add_row(fold.scan.res, fold = n.fold, type = "theta",
+                      lambda.min = lambda.min.theta,
+                      lambda.1se = lambda.1se.theta,
+                      mse.min = mse.min.theta,
+                      mse.1se = mse.1se.theta)
+  
+  # get the phi information
+  mse.min.phi = fit.phi.step$cvm[fit.phi.step$lambda == fit.phi.step$lambda.min]
+  mse.1se.phi = fit.phi.step$cvm[fit.phi.step$lambda == fit.phi.step$lambda.1se]
+  lambda.min.phi = fit.phi.step$lambda.min 
+  lambda.1se.phi = fit.phi.step$lambda.1se
+  
+  # res.phi = tibble(fold = n.fold, type = "phi",
+  #                  lambda.min = lambda.min.phi,
+  #                  lambda.1se = lambda.1se.phi,
+  #                  mse.min   = mse.min.phi,
+  #                  mse.1se   = mse.1se.phi)
+  fold.scan.res = add_row(fold.scan.res,fold = n.fold, type = "phi",
+                   lambda.min = lambda.min.phi,
+                   lambda.1se = lambda.1se.phi,
+                   mse.min   = mse.min.phi,
+                   mse.1se   = mse.1se.phi)
+  
+  proc.time() - ptm
+}
+
+
+```
+
+## Elastic Net Regression 
