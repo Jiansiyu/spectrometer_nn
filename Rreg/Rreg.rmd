@@ -304,55 +304,57 @@ ggplot(res, aes(x=resid.phi,color = "CutID")) + geom_density() +
 ## n.fold cross validation regression
 
 ### 1.prepare the ridge regression dataset
-```{r}
-n.folds = seq(10,100,by=10)
-fold.scan.res = tibble(fold = numeric(),type = str_c(),lambda.min = numeric(),lambda.1se = numeric(), mse.min = numeric(),mse.1se = numeric())
-
-ptm <- proc.time()
-
-for (n.fold in n.folds){
-  fold = sample(rep(1:n.fold,length = nrow(train_X)))
-  fit.theta.step = cv.glmnet(as.matrix(train_X),as.matrix(train_y_theta),foldid = fold)
-  fit.phi.step   = cv.glmnet(as.matrix(train_X),  as.matrix(train_y_phi),foldid = fold)
-
-  # get the min mse
-  mse.min.theta = fit.theta.step$cvm[fit.theta.step$lambda == fit.theta.step$lambda.min]
-  mse.1se.theta = fit.theta.step$cvm[fit.theta.step$lambda == fit.theta.step$lambda.1se]
-  lambda.min.theta = fit.theta.step$lambda.min
-  lambda.1se.theta = fit.theta.step$lambda.1se
-  
-  # res.theta = tibble(fold = n.fold, type = "theta",
-  #                     lambda.min = lambda.min.theta,
-  #                     lambda.1se = lambda.1se.theta,
-  #                     mse.min = mse.min.theta,
-  #                     mse.1se = mse.1se.theta )
-  fold.scan.res = add_row(fold.scan.res, fold = n.fold, type = "theta",
-                      lambda.min = lambda.min.theta,
-                      lambda.1se = lambda.1se.theta,
-                      mse.min = mse.min.theta,
-                      mse.1se = mse.1se.theta)
-  
-  # get the phi information
-  mse.min.phi = fit.phi.step$cvm[fit.phi.step$lambda == fit.phi.step$lambda.min]
-  mse.1se.phi = fit.phi.step$cvm[fit.phi.step$lambda == fit.phi.step$lambda.1se]
-  lambda.min.phi = fit.phi.step$lambda.min 
-  lambda.1se.phi = fit.phi.step$lambda.1se
-  
-  # res.phi = tibble(fold = n.fold, type = "phi",
-  #                  lambda.min = lambda.min.phi,
-  #                  lambda.1se = lambda.1se.phi,
-  #                  mse.min   = mse.min.phi,
-  #                  mse.1se   = mse.1se.phi)
-  fold.scan.res = add_row(fold.scan.res,fold = n.fold, type = "phi",
-                   lambda.min = lambda.min.phi,
-                   lambda.1se = lambda.1se.phi,
-                   mse.min   = mse.min.phi,
-                   mse.1se   = mse.1se.phi)
-  
-  proc.time() - ptm
-}
+```{r cache=TRUE}
+# n.folds = seq(10,100,by=30)
+# fold.scan.res = tibble(fold = numeric(),type = str_c(),lambda.min = numeric(),lambda.1se = numeric(), mse.min = numeric(),mse.1se = numeric())
+# 
+# ptm <- proc.time()
+# 
+# for (n.fold in n.folds){
+#   fold = sample(rep(1:n.fold,length = nrow(train_X)))
+#   fit.theta.step = cv.glmnet(as.matrix(train_X),as.matrix(train_y_theta),foldid = fold)
+#   fit.phi.step   = cv.glmnet(as.matrix(train_X),  as.matrix(train_y_phi),foldid = fold)
+# 
+#   # get the min mse
+#   mse.min.theta = fit.theta.step$cvm[fit.theta.step$lambda == fit.theta.step$lambda.min]
+#   mse.1se.theta = fit.theta.step$cvm[fit.theta.step$lambda == fit.theta.step$lambda.1se]
+#   lambda.min.theta = fit.theta.step$lambda.min
+#   lambda.1se.theta = fit.theta.step$lambda.1se
+#   
+#   # res.theta = tibble(fold = n.fold, type = "theta",
+#   #                     lambda.min = lambda.min.theta,
+#   #                     lambda.1se = lambda.1se.theta,
+#   #                     mse.min = mse.min.theta,
+#   #                     mse.1se = mse.1se.theta )
+#   fold.scan.res = add_row(fold.scan.res, fold = n.fold, type = "theta",
+#                       lambda.min = lambda.min.theta,
+#                       lambda.1se = lambda.1se.theta,
+#                       mse.min = mse.min.theta,
+#                       mse.1se = mse.1se.theta)
+#   
+#   # get the phi information
+#   mse.min.phi = fit.phi.step$cvm[fit.phi.step$lambda == fit.phi.step$lambda.min]
+#   mse.1se.phi = fit.phi.step$cvm[fit.phi.step$lambda == fit.phi.step$lambda.1se]
+#   lambda.min.phi = fit.phi.step$lambda.min 
+#   lambda.1se.phi = fit.phi.step$lambda.1se
+#   
+#   # res.phi = tibble(fold = n.fold, type = "phi",
+#   #                  lambda.min = lambda.min.phi,
+#   #                  lambda.1se = lambda.1se.phi,
+#   #                  mse.min   = mse.min.phi,
+#   #                  mse.1se   = mse.1se.phi)
+#   fold.scan.res = add_row(fold.scan.res,fold = n.fold, type = "phi",
+#                    lambda.min = lambda.min.phi,
+#                    lambda.1se = lambda.1se.phi,
+#                    mse.min   = mse.min.phi,
+#                    mse.1se   = mse.1se.phi)
+#   
+#   proc.time() - ptm
+# }
 
 
 ```
 
 ## Elastic Net Regression 
+### 1.Prepare the Elastic Training Dataset 
+
