@@ -25,19 +25,33 @@ library(glmnetUtils)
 ```
 
 # Load the focal plane training dataset 
-```{r warning=FALSE}
+```{r message=FALSE, warning=FALSE}
 # focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order7_ep5/combine.csv"
 focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order10_ep5/combine.csv"
 
 dataset_focal = readr::read_csv(focal_url)
-dataSet = dataset_focal %>% as.matrix()
-# dataSet
+head(dataset_focal)
+
 ```
+## check the data on the focal plane 
+
+```{r}
+
+plot.dataset = dataset_focal %>% select(evtID, runID, CutID,SieveRowID,SieveColID, bpmX,bpmY,x0th0y0ph1,x0th0y1ph0,x0th1y0ph0,x1th0y0ph0,targCalTh,targCalPh)
+
+runID.list = unique(plot.dataset$runID)
+
+plot.dataset %>%
+  filter(.$runID==2239)%>%
+  ggplot(aes(x=x1th0y0ph0,y=x0th0y1ph0)) + geom_density() 
+```
+
 
 # Spectrometer Regression {.tabset} 
 ## 20-fold lasso regression 
 ### 1. training the model
-```{r }
+Lasso(least absolute shrinkage and selection operator)
+```{r cache=TRUE}
 
 trainSize = round(0.7*nrow(dataSet)) 
 
