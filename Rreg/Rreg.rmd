@@ -25,16 +25,16 @@ library(glmnetUtils)
 ```
 
 # Load the focal plane training dataset 
+![](https://raw.githubusercontent.com/Jiansiyu/spectrometer_nn/main/dataGenerator/resource/runList.png)
 ```{r message=FALSE, warning=FALSE}
 # focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order7_ep5/combine.csv"
 focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order10_ep5/combine.csv"
-
-dataset_focal = readr::read_csv(focal_url)
+dataset_focal = readr::read_csv(focal_url) #%>% filter(.$runID == )
 head(dataset_focal)
 
 ```
 ## check the data on the focal plane 
-
+### 1. Dp +1 0 -1 at bpm(0,0)
 ```{r}
 
 plot.dataset = dataset_focal %>% select(evtID, runID, CutID,SieveRowID,SieveColID, bpmX,bpmY,x0th0y0ph1,x0th0y1ph0,x0th1y0ph0,x1th0y0ph0,targCalTh,targCalPh)
@@ -42,8 +42,48 @@ plot.dataset = dataset_focal %>% select(evtID, runID, CutID,SieveRowID,SieveColI
 runID.list = unique(plot.dataset$runID)
 
 plot.dataset %>%
-  filter(.$runID==2239)%>%
-  ggplot(aes(x=x1th0y0ph0,y=x0th0y1ph0)) + geom_density() 
+  filter(.$runID == 2240 | .$runID == 2256 | .$runID == 2257) %>%
+ggplot() +geom_bin2d(aes(x=x1th0y0ph0,y=x0th0y1ph0),bins = 300) + 
+  ylim(-0.03,0.02)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(x,y)",2240,2256,2257))
+
+plot.dataset %>%
+  filter(.$runID == 2240 | .$runID == 2256 | .$runID == 2257) %>%
+ggplot() +geom_bin2d(aes(x=x0th0y0ph1,y=x0th1y0ph0),bins = 300) + 
+  xlim(-0.025,0.025) + ylim(-0.025,0.025)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(phi,theta)",2240,2256,2257))
+
+```
+### 2. Dp 0 at bpm(-3,0,3)
+```{r}
+plot.dataset %>%
+  filter(.$runID == 2241 | .$runID == 2240 | .$runID == 2239) %>%
+ggplot() +geom_bin2d(aes(x=x1th0y0ph0,y=x0th0y1ph0),bins = 300) + 
+  ylim(-0.03,0.02)+xlim(-0.05,0.01)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(x,y)",2241,2240,2239))
+
+plot.dataset %>%
+  filter(.$runID == 2241 | .$runID == 2240 | .$runID == 2239) %>%
+ggplot() +geom_bin2d(aes(x=x0th0y0ph1,y=x0th1y0ph0),bins = 300) + 
+  xlim(-0.025,0.025) + ylim(-0.025,0.025)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(phi,theta)",2241,2240,2239))
+
+```
+
+### 3. Dp 0 
+```{r}
+plot.dataset %>%
+  filter(.$runID == 2245 | .$runID == 2240 | .$runID == 2244) %>%
+ggplot() +geom_bin2d(aes(x=x1th0y0ph0,y=x0th0y1ph0),bins = 300) + 
+  ylim(-0.03,0.02)+ xlim(-0.05,0.01)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(x,y)",2245,2240,2244))
+
+plot.dataset %>%
+  filter(.$runID == 2245 | .$runID == 2240 | .$runID == 2244) %>%
+ggplot() +geom_bin2d(aes(x=x0th0y0ph1,y=x0th1y0ph0),bins = 300) + 
+  xlim(-0.025,0.025) + ylim(-0.025,0.025)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(phi,theta)",2245,2240,2244))
+
 ```
 
 
@@ -51,8 +91,8 @@ plot.dataset %>%
 ## 20-fold lasso regression 
 ### 1. training the model
 Lasso(least absolute shrinkage and selection operator)
-```{r cache=TRUE}
-
+```{r}
+dataSet = dataset_focal %>% as.matrix()
 trainSize = round(0.7*nrow(dataSet)) 
 
 train  = sample(nrow(dataSet),size = trainSize)
@@ -77,7 +117,6 @@ plot(fit.theta,log='y')
 ```
 ### 2. check how it behave on the training dataset 
 ```{r}
-
 trainSetRes  = trainSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,targCalTh,targCalPh)
 
 train_ResX   = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh)
@@ -93,7 +132,6 @@ colnames(train.y.phi.pred) = c("pred.phi")
 trainSetRes <- cbind(trainSetRes,pred.phi = train.y.phi.pred)
 trainSetRes$resid.theta <- trainSetRes$targCalTh - trainSetRes$pred.theta 
 trainSetRes$resid.phi <- trainSetRes$targCalPh - trainSetRes$pred.phi 
-
 
 ```
 
