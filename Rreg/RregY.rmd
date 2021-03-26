@@ -84,5 +84,9 @@ trainSetRes %>%
 
 trainSetRes %>%
   ggplot(aes(x=pred.y,y=tfiletargCalcY)) + geom_point()
+
+trainSetRes
+
+write.csv(trainSetRes,"resultY.csv")
 ```
 
