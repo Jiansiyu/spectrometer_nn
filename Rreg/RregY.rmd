@@ -33,4 +33,56 @@ data_focal = readr::read_csv(focal_url)
 head(data_focal)
 ```
 ## check the data on the focal plane 
-  
+
+# Spectrometer Regression {.tabset} 
+## 20-fold lasso regression 
+### 1. training the model
+
+```{r}
+
+dataSet = data_focal %>% as.matrix()
+trainSize = round(0.7*nrow(dataSet))
+
+train = sample(nrow(dataSet),size = trainSize)
+test = - train 
+
+trainSet = data_focal[train,]
+
+trainSet %>% head()
+
+train_X = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-tfiletargCalcY,-tfiletargProjY)
+train_y = trainSet %>% select(tfiletargProjY)
+
+
+n.fold = 20
+fold = sample(rep(1:n.fold,length=nrow(train_X)))
+
+fit.y = cv.glmnet(as.matrix(train_X),as.matrix(train_y),foldid = fold)
+
+plot(fit.y)
+
+fit.y
+```
+### test on the training dataset
+```{r}
+
+trainSetRes  = trainSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,tfiletargCalcY,tfiletargProjY)
+
+## prepare the dataset
+train_ResX  = trainSet %>%  select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-tfiletargCalcY,-tfiletargProjY)
+
+train.y.pred = predict(fit.y,newx = as.matrix(train_ResX),s="lambda.1se")
+
+colnames(train.y.pred) = c("pred.y")
+
+trainSetRes <- cbind(trainSetRes,pred.y = train.y.pred)
+trainSetRes$residual.y <- trainSetRes$tfiletargCalcY - trainSetRes$pred.y
+
+trainSetRes %>%
+  ggplot(aes(x=residual.y)) + geom_histogram()
+
+
+trainSetRes %>%
+  ggplot(aes(x=pred.y,y=tfiletargCalcY)) + geom_point()
+```
+
