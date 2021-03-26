@@ -1,0 +1,36 @@
+---
+title: "Spectometer Y Regression" 
+author: "**Siyu Jian / sj9va**"
+# date: " Wed Mar 10 | 10:55am"
+output: R6018::homework
+---
+
+*******************************************
+```{r config, echo=FALSE}
+source(system.file("config/hw_config.R", package="R6018")) # knitr settings
+# options(dplyr.summarise.inform = FALSE)  # ignore dplyr message about grouping
+```
+
+
+# Required R packages and Directories
+
+### {.solution}
+```{r packages, message=FALSE, warning=FALSE}
+data.dir = 'https://mdporter.github.io/SYS6018/data/' # data directory
+library(R6018)     # functions for SYS-6018
+library(tidyverse) # functions for data manipulation   
+library(mlbench)
+library(glmnet)
+library(glmnetUtils) 
+```
+# Load the focal plane training dataset
+![](https://raw.githubusercontent.com/Jiansiyu/spectrometer_nn/main/dataGenerator/resource/runList.png)
+
+
+```{r}
+focal_url = "./result/data_y_731/combine.csv"
+data_focal = readr::read_csv(focal_url)
+head(data_focal)
+```
+## check the data on the focal plane 
+  
