@@ -88,8 +88,6 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         }
     }
 
-
-
 //    queueSize = combinations.size();
 //    for (auto i = 0; i< queueSize; i++){
 //        auto title = combinations.front();
