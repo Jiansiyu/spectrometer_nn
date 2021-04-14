@@ -1,0 +1,496 @@
+---
+title: "Spectometer Regression" 
+author: "**Siyu Jian / sj9va**"
+date: " Wed Mar 10 | 10:55am"
+output: R6018::homework
+---
+
+*******************************************
+```{r config, echo=FALSE}
+source(system.file("config/hw_config.R", package="R6018")) # knitr settings
+# options(dplyr.summarise.inform = FALSE)  # ignore dplyr message about grouping
+```
+
+
+# Required R packages and Directories
+
+### {.solution}
+```{r packages, message=FALSE, warning=FALSE}
+data.dir = 'https://mdporter.github.io/SYS6018/data/' # data directory
+library(R6018)     # functions for SYS-6018
+library(tidyverse) # functions for data manipulation   
+library(mlbench)
+library(glmnet)
+library(glmnetUtils) 
+```
+
+# Load the focal plane training dataset 
+![](https://raw.githubusercontent.com/Jiansiyu/spectrometer_nn/main/dataGenerator/resource/runList.png)
+```{r message=FALSE, warning=FALSE, cache=TRUE}
+focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order7_ep5_absX/combine.csv"
+dataset_focal = readr::read_csv(focal_url) %>% filter(.$runID == 2239 | .$runID == 2240 | .$runID == 2241)
+head(dataset_focal)
+```
+
+## check the data on the focal plane 
+### 1. Dp +1 0 -1 at bpm(0,0)
+```{r}
+
+plot.dataset = dataset_focal %>% select(evtID, runID, CutID,SieveRowID,SieveColID, bpmX,bpmY,x0th0y0ph1,x0th0y1ph0,x0th1y0ph0,x1th0y0ph0,targCalTh,targCalPh)
+
+runID.list = unique(plot.dataset$runID)
+
+plot.dataset %>%
+  filter(.$runID == 2240 | .$runID == 2256 | .$runID == 2257) %>%
+ggplot() +geom_bin2d(aes(x=x1th0y0ph0,y=x0th0y1ph0),bins = 300) + 
+  ylim(-0.03,0.02)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(x,y)",2240,2256,2257))
+
+plot.dataset %>%
+  filter(.$runID == 2240 | .$runID == 2256 | .$runID == 2257) %>%
+ggplot() +geom_bin2d(aes(x=x0th0y0ph1,y=x0th1y0ph0),bins = 300) + 
+  xlim(-0.025,0.025) + ylim(-0.025,0.025)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(phi,theta)",2240,2256,2257))
+
+```
+### 2. Dp 0 at bpm(-3,0,3)
+```{r}
+plot.dataset %>%
+  filter(.$runID == 2241 | .$runID == 2240 | .$runID == 2239) %>%
+ggplot() +geom_bin2d(aes(x=x1th0y0ph0,y=x0th0y1ph0),bins = 300) + 
+  ylim(-0.03,0.02)+xlim(-0.05,0.01)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(x,y)",2241,2240,2239))
+
+plot.dataset %>%
+  filter(.$runID == 2241 | .$runID == 2240 | .$runID == 2239) %>%
+ggplot() +geom_bin2d(aes(x=x0th0y0ph1,y=x0th1y0ph0),bins = 300) + 
+  xlim(-0.025,0.025) + ylim(-0.025,0.025)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(phi,theta)",2241,2240,2239))
+
+```
+
+### 3. Dp 0 
+```{r}
+plot.dataset %>%
+  filter(.$runID == 2245 | .$runID == 2240 | .$runID == 2244) %>%
+ggplot() +geom_bin2d(aes(x=x1th0y0ph0,y=x0th0y1ph0),bins = 300) + 
+  ylim(-0.03,0.02)+ xlim(-0.05,0.01)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(x,y)",2245,2240,2244))
+
+plot.dataset %>%
+  filter(.$runID == 2245 | .$runID == 2240 | .$runID == 2244) %>%
+ggplot() +geom_bin2d(aes(x=x0th0y0ph1,y=x0th1y0ph0),bins = 300) + 
+  xlim(-0.025,0.025) + ylim(-0.025,0.025)+
+  labs(title=sprintf("run_2d_%d_%d_%d_(phi,theta)",2245,2240,2244))
+
+```
+
+
+# Spectrometer Regression {.tabset} 
+## 20-fold lasso regression 
+### 1. training the model
+20-fold **Lasso** Regression (**L**east **A**bsolute **S**hrinkage and **S**election **S**perator)
+
+- On $\theta$ dimension, will only use the regular features
+- On $\phi$ dimension, will only the regular feature plus the **|x|** features
+
+
+**first insite of the optimization did not show a very perfect result.** Probably this is caused by the precidual? Another way to correct this, add the correction term in the post run
+
+**Procedures Used in the Optimization**
+- Opti with the initial Conbinations 
+- get the prediction result 
+- prediction result and the correction term together redo the optimization
+
+
+```{r}
+dataSet = dataset_focal %>% as.matrix() 
+trainSize = round(0.7*nrow(dataSet)) 
+
+train  = sample(nrow(dataSet),size = trainSize)
+test   = - train
+
+trainSet = dataset_focal[train,]
+train_X = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh) %>% select(-contains("ZXabs"))
+
+train_y_theta = trainSet %>% select(targCalTh)
+train_y_phi = trainSet %>% select(targCalPh)
+
+train_X
+```
+### 2. train the model with 20-fold Lasso regression
+
+```{r}
+n.fold = 20
+fold = sample(rep(1:n.fold, length=nrow(train_X)))
+fit.theta = cv.glmnet(as.matrix(train_X),as.matrix(train_y_theta),foldid=fold)
+fit.phi   = cv.glmnet(as.matrix(train_X),as.matrix(train_y_phi),foldid = fold)
+```
+
+```{r}
+
+plot(fit.phi,log='y')
+plot(fit.theta,log='y')
+```
+### 2. check how it behave on the training dataset 
+```{r}
+trainSetRes  = trainSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,targCalTh,targCalPh)
+
+train_ResX   = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh) %>% select(-contains("ZXabs"))
+train_ResX_theta = trainSet  %>% select(targCalTh)
+train_ResX_phi   = trainSet  %>% select(targCalPh)
+
+train.y.theta.pred = predict(fit.theta,newx = as.matrix(train_ResX),s="lambda.1se")
+colnames(train.y.theta.pred) = c("pred.theta")
+trainSetRes <- cbind(trainSetRes,pred.thet = train.y.theta.pred)
+
+train.y.phi.pred = predict(fit.phi,newx = as.matrix(train_ResX),s="lambda.1se")
+colnames(train.y.phi.pred) = c("pred.phi")
+trainSetRes <- cbind(trainSetRes,pred.phi = train.y.phi.pred)
+trainSetRes$resid.theta <- trainSetRes$targCalTh - trainSetRes$pred.theta 
+trainSetRes$resid.phi <- trainSetRes$targCalPh - trainSetRes$pred.phi 
+```
+
+```{r,  out.width="100%"}
+val = trainSetRes %>%
+  filter(.$runID == 2239)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2239))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2240)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2240))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2241)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2241))
+
+val = trainSetRes %>%
+  filter(.$runID == 2244)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2244))
+
+val = trainSetRes %>%
+  filter(.$runID == 2245)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2245))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2256)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2256))
+
+
+val = trainSetRes %>%
+  filter(.$runID == 2257)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2257))
+```
+
+### 3.plot the validation plot 
+```{r}
+# make prediction on the theta and phi angles
+testSet = dataset_focal[test,]
+
+testSetRes = testSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,targCalTh,targCalPh)
+
+test_X = testSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh) %>% select(-contains("ZXabs"))
+test_y_theta = testSet %>% select(targCalTh)
+test_y_phi   = testSet %>% select(targCalPh)
+
+test.y.theta.pred = predict(fit.theta,newx = as.matrix(test_X),s="lambda.1se")
+colnames(test.y.theta.pred) = c("pred.theta")
+testSetRes <- cbind(testSetRes,pred.thet = test.y.theta.pred)
+
+test.y.phi.pred = predict(fit.phi,newx = as.matrix(test_X),s="lambda.1se")
+colnames(test.y.phi.pred) = c("pred.phi")
+testSetRes <- cbind(testSetRes,pred.phi = test.y.phi.pred)
+testSetRes$resid.theta <- testSetRes$targCalTh - testSetRes$pred.theta 
+testSetRes$resid.phi <- testSetRes$targCalPh - testSetRes$pred.phi 
+
+# testSetRes
+```
+
+
+
+
+```{r}
+unique(testSetRes$runID) %>% print()
+val = testSetRes %>% filter(.$runID == 2256)
+val 
+```
+
+```{r}
+unique(testSetRes$runID)
+
+val = testSetRes %>%
+  filter(.$runID == 2239)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2239))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2240)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2240))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2241)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2241))
+
+val = testSetRes %>%
+  filter(.$runID == 2244)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2244))
+
+val = testSetRes %>%
+  filter(.$runID == 2245)
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2245))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2256)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2256))
+
+
+val = testSetRes %>%
+  filter(.$runID == 2257)
+
+ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 500) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+  xlim(-0.015,0.025) + 
+  labs(title=sprintf("run_2d_%d",2257))
+
+#ggplot(val,aes(x=pred.phi,y=pred.theta,color="red")) + geom_point()
+
+```
+
+```{r}
+residalRes = tibble(runID = numeric(), cutID = numeric(),mean.resid.theta = numeric(),stde.resid.theta = numeric(),mean.resid.phi = numeric(),stde.resid.phi= numeric())
+runID.list = unique(testSetRes$runID)
+
+for (id in runID.list) {
+    test.res = testSetRes %>%
+      filter(.$runID == id)
+    
+    cutid.list = unique(test.res$CutID)
+    for (cutid in cutid.list){
+      test.res.cutid = test.res %>%
+        filter(.$CutID == cutid)
+      mean.resid.theta = mean(test.res.cutid$resid.theta)
+      stde.resid.theta = sd(test.res.cutid$resid.theta)/sqrt(length(test.res.cutid$resid.theta))
+      
+      mean.resid.phi = mean(test.res.cutid$resid.phi)
+      stde.resid.phi = sd(test.res.cutid$resid.phi)/sqrt(length(test.res.cutid$resid.phi))
+      residalRes = add_row(residalRes,tibble(runID=id,cutID = cutid, mean.resid.theta = mean.resid.theta,
+                                             stde.resid.theta=stde.resid.theta,
+                                             mean.resid.phi = mean.resid.phi,
+                                             stde.resid.phi = stde.resid.phi))
+    }
+}
+
+residalRes %>%
+  filter(.$runID == 2239) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2239))
+
+
+residalRes %>%
+  filter(.$runID == 2240) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2240))
+
+residalRes %>%
+  filter(.$runID == 2241) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2241))
+
+residalRes %>%
+  filter(.$runID == 2244) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2244))
+
+
+residalRes %>%
+  filter(.$runID == 2245) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2245))
+
+residalRes %>%
+  filter(.$runID == 2256) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2256))
+
+residalRes %>%
+  filter(.$runID == 2257) %>%
+  ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+  labs(title=sprintf("residual_%d",2257))
+
+res = testSetRes %>%
+  filter(.$runID == 2239)
+
+mid_phi_df <- res %>%
+  group_by(CutID) %>%
+  summarize(median=median(resid.phi))
+
+ggplot(res, aes(x=resid.phi,color = "CutID")) + geom_density() + 
+  geom_vline(data =mid_phi_df, aes(xintercept = median))+ 
+  xlim(-0.002,0.002)
+  
+```
+
+### use the **Model** and the corretion term to get a better model
+
+#### get the predicted number for $\theta$ and $\phi$
+
+```{r}
+
+dataset_focal.step1 = dataset_focal
+
+test.step1.X      = dataset_focal.step1 %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh) %>% select(-contains("ZXabs"))
+test.step1.y_theta = dataset_focal.step1 %>% select(targCalTh)
+test.step1.y_phi   = dataset_focal.step1 %>% select(targCalPh)
+# head(test.step1.X)
+# head(test.step1.y_theta)
+# head(test.step1.y_phi)
+
+test.step1.y.theta.pred = predict(fit.theta, newx = as.matrix(test.step1.X), s= "lambda.min")
+colnames(test.step1.y.theta.pred) = c("pred.theta")
+
+
+test.step1.y.phi.pred   = predict(fit.phi, newx = as.matrix(test.step1.X), s= "lambda.min")
+colnames(test.step1.y.phi.pred)  = c("pred.phi")
+
+# test.step1.y.theta.pred = test.step1.y.theta.pred %>% as.tibble()
+# test.step1.y.phi.pred   = test.step1.y.phi.pred   %>% as.tibble()
+# head(test.step1.y.theta.pred)
+# head(test.step1.y.phi.pred)
+
+# attached the prediction to the initial dataset
+#test.step1.y.theta.pred$pred.theta
+
+dataset_focal.step1 <- cbind(dataset_focal.step1, pred.theta = test.step1.y.theta.pred)
+dataset_focal.step1 <- cbind(dataset_focal.step1, pred.phi   = test.step1.y.phi.pred )
+
+dataset_focal.step1  %>% head()
+
+```
+
+#### prepare the secondary step training process 
+
+- take the predition of the first step 
+- add the correction term and do the fitting together
+
+```{r}
+# seperate the training and test dataset
+trainSize = round(0.7*nrow(dataset_focal.step1))
+train = sample(nrow(dataset_focal.step1),size = trainSize)
+test = - train 
+
+trainSet.step2 = dataset_focal.step1[train,] %>% as.tibble()
+
+## trainning dataset for the stage 2
+trainSet.step2.X       = trainSet.step2 %>% select(contains("pred"),contains("ZXabs"))
+trainSet.step2.y_theta = trainSet.step2 %>% select(targCalTh)
+trainSet.step2.y_phi   = trainSet.step2 %>% select(targCalPh)
+
+trainSet.step2.X %>%  head()
+trainSet.step2.y_theta %>% head()
+```
+#### training the model 
+```{r}
+n.fold = 20
+fold = sample(rep(1:n.fold, length=nrow(trainSet.step2.X)))
+
+fit.step2.theta = cv.glmnet(as.matrix(trainSet.step2.X), as.matrix(trainSet.step2.y_theta),foldid = fold)
+fit.step2.phi   = cv.glmnet(as.matrix(trainSet.step2.X), as.matrix(trainSet.step2.y_phi),foldid = fold)
+```
+
+#### step2 training result
+```{r}
+# make predictions on the training and test dataset
+plot(fit.step2.phi)
+plot(fit.step2.theta)
+```
+```{r}
+trainSet.step2 %>% head()
+
+train.step2.pred.theta = predict(fit.step2.theta, newx = as.matrix(trainSet.step2.X),s="lambda.min")
+train.step2.pred.phi   = predict(fit.step2.phi,   newx = as.matrix(trainSet.step2.X),s="lambda.min")
+
+colnames(train.step2.pred.theta) = c("pred.step2.theta")
+colnames(train.step2.pred.phi) = c("pred.step2.phi")
+
+train.step2.pred.theta = train.step2.pred.theta %>% as.tibble()
+train.step2.pred.phi   = train.step2.pred.phi   %>% as.tibble()
+
+#attach the data
+trainSet.step2$pred.step2.theta = train.step2.pred.theta$pred.step2.theta
+trainSet.step2$pred.step2.phi   = train.step2.pred.phi$pred.step2.phi
+
+head(trainSet.step2)
+```
+```{r}
+runid = 2239
+val  = trainSet.step2 %>%
+  filter(.$runID == runid)
+
+ggplot(val) + geom_bin2d(aes(x=pred.step2.phi,y=pred.step2.theta,color="blue"),bins=300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+xlim(-0.015,0.025) + 
+labs(title=sprintf("run_2d_%d",runid))
+
+runid = 2240
+val  = trainSet.step2 %>%
+  filter(.$runID == runid)
+
+ggplot(val) + geom_bin2d(aes(x=pred.step2.phi,y=pred.step2.theta,color="blue"),bins=300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+xlim(-0.015,0.025) + 
+labs(title=sprintf("run_2d_%d",runid))
+
+runid = 2241
+val  = trainSet.step2 %>%
+  filter(.$runID == runid)
+
+ggplot(val) + geom_bin2d(aes(x=pred.step2.phi,y=pred.step2.theta,color="blue"),bins=300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+xlim(-0.015,0.025) + 
+labs(title=sprintf("run_2d_%d",runid))
+
+
+
+```
+
+
+## Optimize with the step 2 result and the regular term (step3)
+
+```{r}
+
+
+
+```
+
