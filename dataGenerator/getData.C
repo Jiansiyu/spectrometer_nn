@@ -135,6 +135,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
     Int_t maxExpoIndex = 5;
     std::queue<TString> combinations;
 
+    // index the x dimension
     for (Int_t index = 0 ; index<= maxExpoIndex; index ++){
         combinations.push(Form("x%dth%dy%dph%d",index,0,0,0));
     }
@@ -170,6 +171,7 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         }
     }
 
+    // index the phi dimension
     queueSize = combinations.size();
     for (auto i = 0; i< queueSize; i++){
         TString str = combinations.front();
@@ -181,11 +183,11 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         Int_t yIndex  =  title[6]-'0';
 
         for (auto index = 0; index<=maxExpoIndex;index++){
+            if (index %2 == 1) continue;
             TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,index);
             combinations.push(str);
         }
     }
-
 
     // apply cut on the total order
     queueSize = combinations.size();
@@ -225,11 +227,11 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         res[str] = pow(x,xIndex)*pow(theta,thIndex)*pow(y,yIndex)*pow(phi,phIndex);
     }
 
+    //_____________________________________________
     // merge the X combination test result
-    auto absXres = getCombination(x,theta,y,phi,"X");
-
-
-    res.insert(absXres.begin(),absXres.end());
+    // should be disabled in donot what to add this term
+//    auto absXres = getCombination(x,theta,y,phi,"X");
+//    res.insert(absXres.begin(),absXres.end());
 
     return  res;
 }
@@ -447,10 +449,15 @@ void GetMinSieveY(TString fnameTemplate="./data/data_y_all/CheckVertex_Report_%d
 }
 
 //_______________________________________________________________________________________________________
-void GetMinSieveEvent(TString fnameTemplate="./data/PRex_RHRS_focal/checkSieve_%d.root",Int_t sieveMinCT = 0){
+//Data set instruction
+//
+//PRex LHRS focal:
+//PRex RHRS focal: ./data/PRex_RHRS_focal/checkSieve_%d.root
+//
+void GetMinSieveEvent(TString fnameTemplate="./data/data_focal/checkSieve_%d.root",Int_t sieveMinCT = 0){
 
-//    Int_t runList[]={2239,2240,2241,2244,2245,2256,2257};
-    Int_t runList[]={21363,21364,21365,21366,21368,21369,21370,21380,21381};
+    Int_t runList[]={2239,2240,2241,2244,2245,2256,2257};
+//    Int_t runList[]={21363,21364,21365,21366,21368,21369,21370,21380,21381};
 
     std::vector<Int_t> SieveEvtCT;
     std::map<Int_t,std::set<Int_t>> cutIDBuff;
