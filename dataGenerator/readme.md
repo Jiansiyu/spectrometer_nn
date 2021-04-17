@@ -1,4 +1,9 @@
 # Training Data Generater
+## dataset instruction
+-[ ] **./data/data_focal/**    ::  
+-[ ] **./data/data_detCoord/** ::
+-[ ] **./data/data_y_all**     :: y dimension, with all the event
+
 
 ## input data source 
 The script take the output of the Opt scripts output root file as input.

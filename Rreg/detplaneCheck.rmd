@@ -1,0 +1,131 @@
+---
+title: "Focal Plane Variable Check " 
+author: "**Siyu Jian / sj9va**"
+# date: " Wed Mar 10 | 10:55am"
+output: R6018::homework
+---
+
+*******************************************
+```{r config, echo=FALSE}
+source(system.file("config/hw_config.R", package="R6018")) # knitr settings
+# options(dplyr.summarise.inform = FALSE)  # ignore dplyr message about grouping
+```
+
+
+# Required R packages and Directories
+
+### {.solution}
+```{r packages, message=FALSE, warning=FALSE}
+data.dir = 'https://mdporter.github.io/SYS6018/data/' # data directory
+library(R6018)     # functions for SYS-6018
+library(tidyverse) # functions for data manipulation   
+library(mlbench)
+library(glmnet)
+library(glmnetUtils) 
+```
+# Load the focal plane training dataset
+![](https://raw.githubusercontent.com/Jiansiyu/spectrometer_nn/main/dataGenerator/resource/runList.png)
+
+
+```{r message=FALSE, warning=FALSE,cache=TRUE}
+focal_url = "http://localhost/Data/spectro_nn/DetPlane/EqEvt731/order5/combine_detplane.csv" 
+data_focal = readr::read_csv(focal_url)
+
+data_focal$det_x  = data_focal$x1th0y0ph0
+data_focal$det_th = data_focal$x0th1y0ph0
+data_focal$det_y  = data_focal$x0th0y1ph0
+data_focal$det_ph = data_focal$x0th0y0ph1
+# head(data_focal)
+```
+
+
+# check the focal plane $\phi$ parameter
+
+
+
+```{r}
+runList = c(2239,2240,2241)
+result.ph = tibble(runID = numeric(), index = numeric(), aver_X = numeric(), aver_Y = numeric())
+
+colors <- c("col.4"="black", "col.6"="red", "col.7"="blue")
+
+myplots <- list()  # new empty list
+for (indexID in 1:length(runList)){
+  runID.step = runList[indexID] 
+  
+  data.step = data_focal %>% filter(runID == runID.step) %>% filter(SieveColID == 4 | SieveColID == 6 | SieveColID == 7)
+  
+  data63 = data.step %>% filter(SieveColID == 6 & SieveRowID == 3)
+  center.63 =  tibble(x= mean(data63$det_ph), y = mean(data63$det_th)+0.005)
+  
+  data42 = data.step %>% filter(SieveColID == 4 & SieveRowID == 2)
+  center.42 =  tibble(x= mean(data42$det_ph), y = mean(data42$det_th)+0.005)
+  data72 = data.step %>% filter(SieveColID == 7 & SieveRowID == 2)
+  center.72 = tibble(x= mean(data72$det_ph), y = mean(data72$det_th)+0.005)
+
+  result.ph = add_row(result.ph,tibble(runID = runID.step, index = 63, aver_X = center.63$x, aver_Y = center.63$y))
+  result.ph = add_row(result.ph,tibble(runID = runID.step, index = 42, aver_X = center.42$x, aver_Y = center.42$y))
+  result.ph = add_row(result.ph,tibble(runID = runID.step, index = 72, aver_X = center.72$x, aver_Y = center.72$y))
+  
+  myp = ggplot(data.step) + geom_bin2d(aes(x=det_ph,y=det_th,color = sprintf("col.%d",SieveColID)),bins=300) + geom_point(data = center.63, aes(x= x , y =y , color = "data.63")) +
+    geom_point(data = center.42, aes(x= x , y =y , color = "data.43")) +
+    geom_point(data = center.72, aes(x= x , y =y , color = "data.72")) +
+    ggtitle(sprintf("LHRS run %d",runID.step)) + xlim(-0.06,0.01) +  ylim(0.93,1.05)
+  myplots[[indexID]] = myp
+}
+
+myplots[1]
+myplots[2]
+myplots[3]
+
+result.ph %>% filter(index == 63)%>%knitr::kable()
+result.ph %>% filter(index == 42)%>%knitr::kable()
+result.ph %>% filter(index == 72)%>%knitr::kable()
+```
+# check the focal plane y parameter
+
+```{r}
+
+```
+
+
+
+
+```{r}
+runList = c(2239,2240,2241)
+result.y = tibble(runID = numeric(), index = numeric(), aver_X = numeric(), aver_Y = numeric())
+colors <- c("col.4"="black", "col.6"="red", "col.7"="blue")
+myplots <- list()  # new empty list
+for (indexID in 1:length(runList)){
+  runID.step = runList[indexID] 
+  
+  data.step = data_focal %>% filter(runID == runID.step) %>% filter(SieveColID == 4 | SieveColID == 6 | SieveColID == 7)
+  
+  data63 = data.step %>% filter(SieveColID == 6 & SieveRowID == 3)
+  center.63 =  tibble(x= mean(data63$det_y), y = mean(data63$det_th)+0.005)
+  
+  data42 = data.step %>% filter(SieveColID == 4 & SieveRowID == 2)
+  center.42 =  tibble(x= mean(data42$det_y), y = mean(data42$det_th)+0.005)
+  data72 = data.step %>% filter(SieveColID == 7 & SieveRowID == 2)
+  center.72 = tibble(x= mean(data72$det_y), y = mean(data72$det_th)+0.005)
+
+  result.y = add_row(result.y,tibble(runID = runID.step, index = 63, aver_X = center.63$x, aver_Y = center.63$y))
+  result.y = add_row(result.y,tibble(runID = runID.step, index = 42, aver_X = center.42$x, aver_Y = center.42$y))
+  result.y = add_row(result.y,tibble(runID = runID.step, index = 72, aver_X = center.72$x, aver_Y = center.72$y))
+  
+  myp = ggplot(data.step) + geom_bin2d(aes(x=det_y,y=det_th,color = sprintf("col.%d",SieveColID)),bins=300) + geom_point(data = center.63, aes(x= x , y =y , color = "data.63")) +
+    geom_point(data = center.42, aes(x= x , y =y , color = "data.43")) +
+    geom_point(data = center.72, aes(x= x , y =y , color = "data.72")) +
+     ggtitle(sprintf("LHRS run %d",runID.step)) # xlim(-0.025,0.02) +  ylim(-0.025,0.02) +
+  myplots[[indexID]] = myp
+}
+
+myplots[1]
+myplots[2]
+myplots[3]
+
+result.y %>% filter(index==63) %>% knitr::kable()
+result.y %>% filter(index==42) %>% knitr::kable()
+result.y %>% filter(index==72) %>% knitr::kable()
+```
+

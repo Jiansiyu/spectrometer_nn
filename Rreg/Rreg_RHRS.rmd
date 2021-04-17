@@ -108,6 +108,7 @@ myplot[5]
 myplot[6]
 myplot[7]
 myplot[8]
+myplot[9]
 ```
 ### check the residual plot 
 ```{r}
@@ -150,6 +151,7 @@ myplot.residual[5]
 myplot.residual[6]
 myplot.residual[7]
 myplot.residual[8]
+myplot.residual[9]
 ```
 
 
