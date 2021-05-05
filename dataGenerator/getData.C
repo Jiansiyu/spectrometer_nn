@@ -183,7 +183,13 @@ std::map<TString,double> getCombination(double  x, double theta,double y, double
         Int_t yIndex  =  title[6]-'0';
 
         for (auto index = 0; index<=maxExpoIndex;index++){
-            if (index %2 == 1) continue;
+            if (index %2 == 1) {
+                if(!(((thIndex == 1)||(thIndex == 2))&&((yIndex == 0)||(yIndex == 1)))){
+                    continue;
+                }
+            }
+            //add some more terms
+
             TString str = Form("x%dth%dy%dph%d",xIndex,thIndex,yIndex,index);
             combinations.push(str);
         }
