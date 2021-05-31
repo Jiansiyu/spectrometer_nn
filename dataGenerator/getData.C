@@ -457,13 +457,14 @@ void GetMinSieveY(TString fnameTemplate="./data/data_y_all/CheckVertex_Report_%d
 //_______________________________________________________________________________________________________
 //Data set instruction
 //
-//PRex LHRS focal:
+//PRex LHRS focal: ./data/data_focal/checkSieve_%d.root
 //PRex RHRS focal: ./data/PRex_RHRS_focal/checkSieve_%d.root
 //
-void GetMinSieveEvent(TString fnameTemplate="./data/data_focal/checkSieve_%d.root",Int_t sieveMinCT = 0){
+void GetMinSieveEvent(TString fnameTemplate="./data/PRex_RHRS_focal/checkSieve_%d.root",
+                      Int_t sieveMinCT = 0){
 
-    Int_t runList[]={2239,2240,2241,2244,2245,2256,2257};
-//    Int_t runList[]={21363,21364,21365,21366,21368,21369,21370,21380,21381};
+//    Int_t runList[]={2239,2240,2241,2244,2245,2256,2257};
+    Int_t runList[]={21363,21364,21365,21366,21368,21369,21370,21380,21381};
 
     std::vector<Int_t> SieveEvtCT;
     std::map<Int_t,std::set<Int_t>> cutIDBuff;
