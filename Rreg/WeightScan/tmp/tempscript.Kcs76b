@@ -1,0 +1,1 @@
+library(rmarkdown); rmarkdown::render('RregNearBeam1000.Rmd', 'html_document')

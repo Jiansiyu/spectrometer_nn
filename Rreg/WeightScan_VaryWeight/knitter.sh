@@ -1,0 +1,11 @@
+#!/bin/bash
+Rscript -e "rmarkdown::render('RregVaryWeight01.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight02.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight03.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight04.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight05.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight06.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight07.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight08.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight09.Rmd')"
+Rscript -e "rmarkdown::render('RregVaryWeight10.Rmd')"
