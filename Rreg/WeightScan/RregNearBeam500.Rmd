@@ -1,0 +1,171 @@
+---
+title: "Spectometer Regression With All Phi Term" 
+author: "**Siyu Jian / sj9va**"
+date: " Wed Mar 10 | 10:55am"
+output: R6018::homework
+---
+
+*******************************************
+```{r config, echo=FALSE}
+source(system.file("config/hw_config.R", package="R6018")) # knitr settings
+# options(dplyr.summarise.inform = FALSE)  # ignore dplyr message about grouping
+```
+
+
+# Required R packages and Directories
+
+### {.solution}
+```{r packages, message=FALSE, warning=FALSE}
+data.dir = 'https://mdporter.github.io/SYS6018/data/' # data directory
+library(R6018)     # functions for SYS-6018
+library(tidyverse) # functions for data manipulation   
+library(mlbench)
+library(glmnet)
+library(glmnetUtils) 
+```
+
+# Load the focal plane training dataset 
+![](https://raw.githubusercontent.com/Jiansiyu/spectrometer_nn/main/dataGenerator/resource/runList.png)
+
+**Dataset Notics**
+
+* **PRex_LHRS_combine_focal.csv** :: the Old Phi term removed from the dataset
+
+```{r message=FALSE, warning=FALSE}
+
+focal_url = "http://localhost/Data/spectro_nn/focalPlane/Equal/EqEvt731/order7_ep5/combine.csv"
+dataset_focal = readr::read_csv(focal_url)
+head(dataset_focal)
+set.seed(2000)
+```
+
+
+# Training the model
+
+## pre-process the dataset, select the runs , sieves that will be used for the optimization
+
+```{r}
+
+dataSet = dataset_focal %>% 
+  filter(.$SieveColID <=12 & .$SieveColID >=3)
+#filter(.$runID == 2239 | .$runID == 2240 |  .$runID == 2241) %>%#
+
+# add another weight term, how to adjust the weight term make sure it close to the theoretical value
+
+dataSet  = dataSet %>% mutate(wght = case_when(
+  SieveColID <= 5 ~ 500,
+  TRUE ~ 1
+)) 
+#dataSet%>% select(runID,SieveColID,SieveRowID,wght) %>% knitr::kable()
+
+runList = unique(dataSet$runID)
+
+
+```
+
+### pre-pare the training and the test dataset
+```{r}
+
+trainSize = round(0.5*nrow(dataSet))
+
+train = sample(nrow(dataSet), size = trainSize)
+test  = - train 
+
+trainSet = dataSet[train,]
+train_X = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh,-wght)
+train_y_theta = trainSet %>% select(targCalTh)
+train_y_phi = trainSet %>% select(targCalPh)
+cv.weight = trainSet %>% select(wght)
+```
+
+### training the model
+```{r}
+n.fold = 10
+
+fit.theta = cv.glmnet(as.matrix(train_X), as.matrix(train_y_theta),nfolds = n.fold)
+fit.phi   = cv.glmnet(as.matrix(train_X), as.matrix(train_y_phi), weights = as.matrix(cv.weight), nfolds = n.fold)
+```
+
+```{r}
+plot(fit.phi)
+```
+### test on the dataset
+```{r message=FALSE, warning=FALSE, fig.width=5,fig.height=3}
+
+trainSetRes = trainSet %>% select(evtID, runID, CutID,SieveRowID,SieveColID,bpmX,bpmY,targCalTh,targCalPh)
+train_ResX   = trainSet %>% select(-evtID, -runID, -CutID,-SieveRowID,-SieveColID,-bpmX,-bpmY,-targCalTh,-targCalPh,-wght)
+train_ResX_theta = trainSet  %>% select(targCalTh)
+train_ResX_phi   = trainSet  %>% select(targCalPh)
+
+train.y.theta.pred = predict(fit.theta,newx = as.matrix(train_ResX),s="lambda.min")
+colnames(train.y.theta.pred) = c("pred.theta")
+trainSetRes <- cbind(trainSetRes,pred.thet = train.y.theta.pred)
+
+train.y.phi.pred = predict(fit.phi,newx = as.matrix(train_ResX),s="lambda.min")
+colnames(train.y.phi.pred) = c("pred.phi")
+trainSetRes <- cbind(trainSetRes,pred.phi = train.y.phi.pred)
+trainSetRes$resid.theta <- trainSetRes$targCalTh - trainSetRes$pred.theta 
+trainSetRes$resid.phi <- trainSetRes$targCalPh - trainSetRes$pred.phi 
+
+myplot <- list()
+for (index.step  in 1:length(runList) ) {
+  runID.step = runList[index.step]
+  val = trainSetRes %>%
+    filter(.$runID == runID.step)
+  mypt = ggplot(val) +geom_bin2d(aes(x=pred.phi,y=pred.theta,color = "blue"),bins = 300) + geom_point(aes(y=targCalTh,x=targCalPh,color="green")) + 
+    xlim(-0.025,0.025) + ylim(-0.045,0.045) + labs(title=sprintf("run_2d_%d",runID.step))
+  myplot[[index.step]] = mypt
+}
+
+myplot[1]
+myplot[2]
+myplot[3]
+myplot[4]
+myplot[5]
+myplot[6]
+myplot[7]
+myplot[8]
+myplot[9]
+```
+### check the residual plot 
+```{r message=FALSE, warning=FALSE}
+residalRes = tibble(runID = numeric(), cutID = numeric(),mean.resid.theta = numeric(),stde.resid.theta = numeric(),mean.resid.phi = numeric(),stde.resid.phi= numeric())
+
+for (id in runList) {
+    test.res = trainSetRes %>%
+      filter(.$runID == id)
+    
+    cutid.list = unique(test.res$CutID)
+    for (cutid in cutid.list){
+      test.res.cutid = test.res %>%
+        filter(.$CutID == cutid)
+      mean.resid.theta = mean(test.res.cutid$resid.theta)
+      stde.resid.theta = sd(test.res.cutid$resid.theta)/sqrt(length(test.res.cutid$resid.theta))
+      
+      mean.resid.phi = mean(test.res.cutid$resid.phi)
+      stde.resid.phi = sd(test.res.cutid$resid.phi)/sqrt(length(test.res.cutid$resid.phi))
+      residalRes = add_row(residalRes,tibble(runID=id,cutID = cutid, mean.resid.theta = mean.resid.theta,
+                                             stde.resid.theta=stde.resid.theta,
+                                             mean.resid.phi = mean.resid.phi,
+                                             stde.resid.phi = stde.resid.phi))
+    }
+}
+
+myplot.residual <- list()
+for (index.step in 1:length(runList)){
+  runID.step = runList[index.step]
+  myplt = residalRes %>%
+    filter(.$runID == runID.step) %>%
+    ggplot(aes(x=cutID,y=mean.resid.phi)) + geom_point() + ylim(-0.003,0.003) +  
+    labs(title=sprintf("residual_%d",runID.step))
+  myplot.residual[[index.step]] = myplt
+}
+myplot.residual[1]
+myplot.residual[2]
+myplot.residual[3]
+myplot.residual[4]
+myplot.residual[5]
+myplot.residual[6]
+myplot.residual[7]
+```
+
